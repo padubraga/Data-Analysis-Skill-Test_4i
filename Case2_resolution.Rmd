@@ -1,0 +1,536 @@
+---
+title: "Case 2_Data Analysis Skill Test - 4intelligence"
+author: "Paulo Eduardo Braga"
+date: "01/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Objetivo**
+
+A partir de uma base de dados de exportações e importações brasileiras serão feitas algumas análises para comércio internacional brasileiro. 
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+# Pacotes necessarios para a analise.
+
+# install.packages('skimr')
+# install.packages('forecast')
+# install.packages('ggplot2')
+# install.packages('RColorBrewer')
+# install.packages('dplyr')
+# install.packages('sqldf')
+
+library(skimr)
+library(forecast)
+library(ggplot2)
+library(RColorBrewer)
+library(dplyr)
+library(sqldf)
+
+```
+## Importando arquivo `Data_Comexstat`
+
+```{r }
+data = read.csv('data_comexstat.csv', header = T)
+
+```
+
+## Análise descritiva do danco de dados
+
+```{r }
+
+skim(data)
+
+```
+
+Nesse banco de dados há informações de exportações e importações realizados pelo Brasil, distinguindo entre os modais, produto, estado que importou/exportou, país de origem/destinatário, quantidade(ton) e valor (USD). Com informações mensais que vão de janeiro/1997 a dezembro/2019, há um total de 117.965 observações e não há observações faltantes (missing).
+
+A distribuição das observações, de acordo com a modal utilizado é:
+```{r }
+summary(as.factor(data$route))
+```
+
+Os tipos de produtos comercilizados, foram:
+```{r }
+summary(as.factor(data$product))
+
+```
+
+Quando considerado o modal mais utilizado para realizar o comércio internacional, o transporte marítimo representa 79,574% do total de transações realizadas, e em segundo lugar é o transporte terrestre representando 11,05% do total de transações. 
+
+Considerando a quantidade de transaçãos, o produto que lidera o ranking com a maior quantidade de transações é o `açúcar`, ele representa 29,84% do total de transações realizadas. Em seguno lugar está o `grão de soja` e em terceiro o `milho`, representanto 19,4% e 18,5% do total de transações, respectivamente. 
+
+## Item 1 -  Mostrar a evolução das exportações totais mensais e anuais do Brasil (todos os estados e para todos os lugares) de ‘soja’, ‘óleo de soja’ e ‘farelo de soja’. 
+
+
+#### Análise do Valor exportado (dólares)
+
+```{r }
+
+#Construindo um subconjunto com os produtos selecionados
+q1 <- subset(data, type == 'Export' & product %in% c('soybeans','soybean_oil','soybean_meal')) %>% 
+      select(c(date,product, usd)) %>% 
+      group_by(product , months(as.Date(date), abbreviate = T))  %>%
+      summarise_at('usd', sum, na.rm = F)
+
+# Renomeando as colunas
+colnames(q1) <- c('Produto', 'Mês','Dólares')
+
+graf_1 <- ggplot(data = q1 , aes(x = Mês, y = Dólares, fill = Produto)) + geom_bar(stat = 'identity', na.rm = T) + 
+      labs(title = "Gráfico 1: Exportação total mensal - por commoditie (dólares)") +
+      scale_fill_brewer(palette = "Paired") +
+      theme(legend.position="left") +
+      scale_y_continuous(breaks = seq(0, 100000000000, 10000000000), position = "right")
+
+graf_1
+
+```
+
+```{r }
+
+#Construindo um subconjunto com os produtos selecionados
+s2 <- subset(data, type == 'Export' & product %in% c('soybeans','soybean_oil','soybean_meal')) %>% 
+      select(c(date,product, usd)) %>% 
+      group_by(product , format(as.Date(date), '%Y'))  %>%
+      summarise_at('usd', sum, na.rm = F)
+
+# Renomeando as colunas
+colnames(s2) <- c('Produto', 'Ano','Dólares')
+
+graf_2 <- ggplot(data = s2 , aes(x = Ano, y = Dólares, fill = Produto)) + geom_bar(stat = 'identity', na.rm = T) + 
+      labs(title = "Gráfico 2: Exportação total anual - por commoditie (dólares)") +
+      scale_fill_brewer(palette = "Paired") +
+      theme(legend.position="left") +
+      scale_y_continuous(breaks = seq(0, 100000000000, 10000000000), position = "right" ) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+graf_2
+
+```
+
+#### Análise da quantidade exportada (tonelada)
+
+```{r }
+#Construindo um subconjunto com os produtos selecionados
+q2 <- subset(data, type == 'Export' & product %in% c('soybeans','soybean_oil','soybean_meal')) %>% 
+      select(c(date,product, tons)) %>% 
+      group_by(product , months(as.Date(date), abbreviate = T))  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+# Renomeando as colunas
+colnames(q2) <- c('Produto', 'Mês','Ton.')
+
+graf_3 <- ggplot(data = q2 , aes(x = Mês, y = Ton., fill = Produto)) + geom_bar(stat = 'identity', na.rm = T) + 
+      labs(title = "Gráfico 3: Exportação total mensal - por commoditie (ton.)") +
+      scale_fill_brewer(palette = "Paired") +
+      theme(legend.position="left") +
+      scale_y_continuous(breaks = seq(0, 100000000000, 10000000000), position = "right")
+
+graf_3
+
+```
+
+```{r }
+#Construindo um subconjunto com os produtos selecionados
+q3 <- subset(data, type == 'Export' & product %in% c('soybeans','soybean_oil','soybean_meal')) %>% 
+      select(c(date,product, tons)) %>% 
+      group_by(product , format(as.Date(date), '%Y'))  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+# Renomeando as colunas
+colnames(q3) <- c('Produto', 'Ano','Ton.')
+
+graf_4 <- ggplot(data = q3 , aes(x = Ano, y = Ton., fill = Produto)) + geom_bar(stat = 'identity', na.rm = T) + 
+      labs(title = "Gráfico 4: Exportação total anual - por commoditie (ton.)") +
+      scale_fill_brewer(palette = "Paired") +
+      theme(legend.position="left") +
+      scale_y_continuous(breaks = seq(0, 100000000000, 10000000000), position = "right" ) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5))
+
+graf_4
+
+```
+
+Ao comparar a evolução mensal e anual é interessante pontuar o componente da sazonalidade, que influencia principalmente a `sojão em grão`. Como o `óleo de soja` e o `farelo de soja` passam por um processo de industrial antes de ser exportado, a sua quantidade exportada não é tão afetada pela sazonalidade. 
+
+## Item 2 -  Quais os 3 produtos mais importantes exportados pelo Brasil nos últimos 5 anos?
+
+Considerando, inicialmente, como produtos mais importantes pelo seu valor total exportado.
+```{r }
+
+q2 <- subset(data, type == 'Export' & 
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-3, 
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-4))  %>% 
+      select(product, usd) %>% 
+      group_by(product)  %>%
+      summarise_at('usd', sum, na.rm = F)
+
+q2_ordem <- q2[order(q2$usd, decreasing = T),]
+
+
+q2_ordem[1:3,]
+
+```
+
+Em ordem crescente, em relação ao valor total exportado o `grão se soja` corresponde a 55,3% do total, o `açúcar` 18,38% e o `farelo de soja` 12,75%. 
+
+Agora, considerando a quantidade total exportada.
+```{r }
+q2 <- subset(data, type == 'Export' & 
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-3, 
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-4))  %>% 
+      select(product, tons) %>% 
+      group_by(product)  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+q2_ordem <- q2[order(q2$tons, decreasing = T),]
+
+
+q2_ordem[1:3,]
+
+```
+
+Ao considerar o ranking da quantidade total exportada, o `grão de soja` ocupa a primeira posição, o `milho` ocupa a segunda e o `açúcar` ocupa a terceira posição.
+
+O fato do milho estar apenas no ranking da quantidade exportada deve-se ao fato do seu baixo valor agregado e grandes flutuações do seu preço comercializado.
+
+## Item 3 - Quais são os principais modais pelos quais o Brasil tem exportado ‘milho’ nos últimos anos? Existem diferenças na importância relativa das rotas dependendo do produto?
+
+```{r }
+
+q3 <- subset(data, type == 'Export' & product == 'corn' &
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2,
+                                               
+as.numeric(max(format(as.Date(data$date), '%Y')))-3, 
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-4)) %>% 
+      select(route, tons) %>% 
+      group_by(route)  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+q3_ordem <- q3[order(q3$tons, decreasing = T),]
+
+q3_ordem[1:3,]
+
+```
+
+Nos últimos 5 anos, o principal modal utilizado para escoar a produção de milho foi aquaviário. Sendo, o principal o marítimo, seguido pelo transporte via rios/lagoas. 
+
+#### Importância relativa do modal por produto
+
+
+```{r }
+
+q3_1 <- subset(data, type == 'Export' &
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2,
+
+as.numeric(max(format(as.Date(data$date), '%Y')))-3, 
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-4)) %>% 
+      select(product, route, tons) %>% 
+      group_by(route, product)  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+graf_5 <- ggplot(data = q3_1 , aes(x = route, y = tons, fill = product)) + geom_bar(stat = 'identity', na.rm = T) +  xlab("Modal") + ylab("Ton.") +
+      labs(title = "Gráfico 5: Importância relativa dos modais utlizados para exportação, por tonelada (2014-2019)") +
+      scale_fill_brewer(palette = "Paired") +
+      theme(legend.position="left") +
+      scale_y_continuous(breaks = seq(0, 100000000000, 100000000), position = "right" )
+
+graf_5
+
+```
+
+De acordo com o `Gráfico 5` o modal mais utilizado é o marítimo. E cada produto passa, quase, inteiramente por apenas um caminho. Ou seja, não há grandes diferenças entre o tipo de modal escolhido dado o produto exportado. 
+
+## Item 4 - Quais países foram os parceiros comerciais mais importantes para o Brasil em termos de ‘milho’ e ‘açúcar’ nos últimos 3 anos?
+
+#### Milho
+```{r }
+
+q4 <- subset(data, type == 'Export' & product %in% c('corn') &
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2))  %>% 
+      select(country, usd) %>% 
+      group_by(country)  %>%
+      summarise_at('usd', sum, na.rm = F)
+
+q4_ordem <- q4[order(q4$usd, decreasing = T),]
+
+q4_ordem[1:5,]
+
+```
+
+A tabela, acima, apresenta o ranking dos 5 principais parceiros comerciais do Brasil no comércio de `milho`, nos últimos 3 anos. 
+
+#### Açúcar
+```{r }
+
+q4_1 <- subset(data, type == 'Export' & product %in% c('sugar') &
+            format(as.Date(date), '%Y') %in% c(as.numeric(max(format(as.Date(data$date), '%Y'))),
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-1,
+                                               as.numeric(max(format(as.Date(data$date), '%Y')))-2))  %>% 
+      select(country, usd) %>% 
+      group_by(country)  %>%
+      summarise_at('usd', sum, na.rm = F)
+
+q4_1_ordem <- q4_1[order(q4_1$usd, decreasing = T),]
+
+q4_1_ordem[1:5,]
+
+```
+A tabela, acima, apresenta o ranking dos 5 principais parceiros comerciais do Brasil no comércio de `açúcar`, nos últimos 3 anos. 
+
+
+## Item 5 - Para cada um dos produtos no conjunto de dados, apresente os 5 estados mais importantes em termos de exportações?
+
+```{r }
+
+q5 <- function(product) { paste("SELECT product, state, SUM(usd) 
+                                    FROM data 
+                                    WHERE product = '",product,"' and type = 'Export'
+                                    GROUP BY product, state
+                                    ORDER BY 3 DESC
+                                    LIMIT 5", sep = "", collapse = "")}
+
+df <- data.frame()
+
+for (i in 1:length(levels(as.factor(data$product)))) {
+  
+  result <- sqldf(q5(levels(as.factor(data$product))[i]))
+  df <- rbind(df,result)}
+
+colnames(df) <- c('Produto','Estado','Dólares')
+
+df
+
+```
+
+A tabela, acima, apresenta os 5 estados principais na exportação de cada Produto. Para o `milho` esses estados estão concentrados na região Centro-Oeste. Para o `farelo de soja`, `óleo de soja` e `grão de soja` a região Sul e Centro-Oeste são as principais. O sudeste é a principal região na exportação de `açúçar`. E a região sul é a principal na exportação  de `trigo`. 
+
+## Item 6 - Qual deve ser projeção da exportação total exportado de soja, farelo de soja e  milho, em toneladas, para os próximos 11 anos (2020-2030)?
+
+```{r }
+#Definindo o grupo com as commodities selecionadas
+q6 <- subset(data, type == 'Export' & product %in% c('corn','soybeans','soybean_meal'))  %>% 
+      select(date, product, tons) %>% 
+      group_by(product, format(as.Date(date), '%Y'))  %>%
+      summarise_at('tons', sum, na.rm = F)
+
+colnames(q6) <- c('product','year','tons')
+ 
+```
+
+#### Soja em grão
+
+O gráfico, abaixo, apresenta a evolução da quantidade exportada de soja em grão, pelo Brasil, entre 1997 a 2019. 
+
+```{r }
+
+graf_6 <- ggplot(data = q6[q6$product == 'soybeans',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton.") + labs(title = "Gráfico 6: Quantidade exportada de soja em grão (1997 - 2019)") +
+      geom_point(colour = "#000000", size = 0.9) +
+      scale_x_continuous(breaks = seq(min(q6$year),max(q6$year), 2)) +
+      scale_y_continuous(breaks = seq(min(q6$tons),max(q6$tons), 7000000))
+
+graf_6
+```
+
+
+```{r }
+
+#Modelo Arima
+arima_result = auto.arima(q6$tons[q6$product == 'soybeans'])
+
+summary(arima_result)
+
+# Modelo de Previsão
+previsaoARIMA = forecast(arima_result, h = 11)
+
+previsaoARIMA$method
+```
+
+A melhor especificação para realizar a previsão da quantidade exportada de soja em grão é o modelo ARIMA (0,1,0) com constante. 
+
+Os valores previstos da Quantidade exportada de soja em grão para os próximos 10 anos estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+```{r }
+#Valores da previsão
+previsao <- as.data.frame(previsaoARIMA)
+
+previsao
+```
+
+
+```{r }
+#Gráfico da previsão
+graf_7 <- ggplot(data = q6[q6$product == 'soybeans',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton") + labs(title = "Gráfico 7: Previsão da exportação (ton.) de soja em grão, (2021 - 2030)") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao, fill="#1e90ff") +
+      geom_line(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`), data = previsao, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(q6$year),2030, 3)) +
+      scale_y_continuous(breaks = seq(0, max(previsao$`Hi 95`), 7000000))
+
+graf_7
+```
+
+#### Farelo de Soja
+
+O gráfico, abaixo, apresenta a evolução da quantidade exportada de farelo de soja, pelo Brasil, entre 1997 a 2019. 
+
+```{r }
+
+graf_8 <- ggplot(data = q6[q6$product == 'soybean_meal',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton.") + labs(title = "Gráfico 8: Quantidade exportada de farelo de soja (1997 - 2019") +
+      geom_point(colour = "#000000", size = 0.9) +
+      scale_x_continuous(breaks = seq(min(q6$year),max(q6$year), 2)) +
+      scale_y_continuous(breaks = seq(min(q6$tons),max(q6$tons), 7000000))
+graf_8
+```
+
+
+```{r }
+
+#Modelo Arima
+arima_result = auto.arima(q6$tons[q6$product == 'soybean_meal'])
+
+summary(arima_result)
+
+# Modelo de Previsão
+previsaoARIMA = forecast(arima_result, h = 11)
+
+previsaoARIMA$method
+```
+
+A melhor especificação para realizar a previsão da quantidade exportada de farelo de soja é o modelo ARIMA (0,1,0). 
+
+Os valores previstos da Quantidade exportada de farelo de soja para os próximos 10 anos estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+```{r }
+#Valores da previsão
+previsao <- as.data.frame(previsaoARIMA)
+
+previsao
+```
+
+
+```{r }
+
+#Gráfico da previsão
+graf_9 <- ggplot(data = q6[q6$product == 'soybean_meal',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton") + labs(title = "Gráfico 9: Previsão da exportação (ton.) de farelo de soja, 2021 - 2030") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao, fill="#1e90ff") +
+      geom_line(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`), data = previsao, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(q6$year),2030, 3)) +
+      scale_y_continuous(breaks = seq(0, max(previsao$`Hi 95`), 7000000))
+
+graf_9
+```
+
+
+#### Milho
+
+O gráfico, abaixo, apresenta a evolução da quanitdade exportada de milho pelo Brasil, entre 1997 a 2019. 
+
+```{r }
+
+graf_10 <- ggplot(data = q6[q6$product == 'corn',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton.") + labs(title = "Gráfico 10: Quantidade exportada de milho (1997 - 2019") +
+      geom_point(colour = "#000000", size = 0.9) +
+      scale_x_continuous(breaks = seq(min(q6$year),max(q6$year), 2)) +
+      scale_y_continuous(breaks = seq(min(q6$tons),max(q6$tons), 7000000))
+graf_10
+```
+
+
+```{r }
+
+#Modelo Arima
+arima_result = auto.arima(q6$tons[q6$product == 'corn'])
+
+summary(arima_result)
+
+# Modelo de Previsão
+previsaoARIMA = forecast(arima_result, h = 11)
+
+previsaoARIMA$method
+```
+
+A melhor especificação para fazer a previsão da quantidade exportada de milho é o modelo ARIMA (1,1,0) com constante. 
+
+
+Os valores previstos da Quantidade exportada de milho para os próximos 10 anos estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+```{r }
+#Valores da previsão
+previsao <- as.data.frame(previsaoARIMA)
+
+previsao
+```
+
+
+```{r }
+#Gráfico da previsão
+
+graf_11 <- ggplot(data = q6[q6$product == 'corn',], aes(x = as.numeric(year), y = as.numeric(tons))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("Ton") + labs(title = "Gráfico 11:Previsão da exportação (ton.) de milho, 2021 - 2030") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao, fill="#1e90ff") +
+      geom_line(aes(x=c(2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030),
+                    y=`Point Forecast`), data = previsao, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(q6$year),2030, 3)) +
+      scale_y_continuous(breaks = seq(0, max(previsao$`Hi 95`), 7000000))
+
+graf_11
+```
+
+O modelo de previsão elaborado para a quantidade exportada de soja manteve a tendência de crescimento constante os valores observados da série. 
+
+Para o farelo de soja, por mais que o modelo ARIMA (0,1,0) foi indicado como melhor especificação, o modelo de previsão estimou que a quantidade  exportada de farelo de soja será constante entre 2020 a 2030. Como a série observada rapresentou grandes variações, a sua projeção ficou prejudicada. 
+
+Já a para o milho, o modelo elaborado conseguiu capturar os efeitos cíclicos da exportação do milho, no período observado. A previsão apresenta a manutenção da tendência de crescimento, respeitando o comportamento da série observada. 

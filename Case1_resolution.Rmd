@@ -1,0 +1,368 @@
+---
+title: "Case 1_Data Analysis Skill Test - 4intelligence"
+author: "Paulo Eduardo Braga"
+date: "01/12/2020"
+output: html_document
+---
+# **Objetivo**
+
+Analisar a Produtividade Total dos Fatores (PTF) para os Estados Unidos da América, Canadá e México, entre 1950 a 2011. (Nessa análise considerou-se 2005 como ano-base).
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+
+# Pacotes necessarios para a analise.
+
+# install.packages('skimr')
+# install.packages('forecast')
+# install.packages('ggplot2')
+# install.packages('RColorBrewer')
+
+library(skimr)
+library(forecast)
+library(ggplot2)
+library(RColorBrewer)
+
+
+```
+
+
+## Importando arquivo PTF
+
+```{r }
+
+data = read.csv('TFP.csv', header = T)
+
+```
+
+## Item 1 - Análise Exploratória
+
+Como o período da análise é de 1950 a 2011 e não há nenhum valor perdido, o número total de observações é de 168. As tabelas, abaixo, apresentam uma rápida caracterização da estrutura do banco de dados. 
+
+```{r }
+skim(data)
+
+```
+
+No gráfico, abaixo, é possível conferir o histograma combinado com a  densidade da PTF para os 3 países. 
+
+```{r }
+
+histogram <- ggplot(data= data, aes(x=rtfpna)) + 
+              geom_histogram(aes(y =..density..),
+                             col="blue",
+                             fill="blue",
+                             alpha=.2) + 
+              geom_density(col = 'black', size = 1) +  
+              labs(x='Produtividade Total dos fatores')+labs(title = "Gráfico 1: Histograma e Densidade da PTF para os países")
+
+histogram
+
+```
+
+Nas tabelas e gráficos, abaixo, será possível analisar o comportamento da PTF em cada país. 
+
+
+```{r }
+eua <- subset(data, isocode == 'USA')
+can <- subset(data, isocode == 'CAN')
+mex <- subset(data, isocode == 'MEX')
+
+summary(eua$rtfpna)
+summary(can$rtfpna)
+summary(mex$rtfpna)
+
+sd(eua$rtfpna)
+sd(can$rtfpna)
+sd(mex$rtfpna)
+
+```
+
+Dos 3 países analisado, o Canadá foi o que teve menor variabilidade e amplitude da PTF. Tendo como PTF média, entre o período analisado, de 0,9929 e desvio-padrão de 0,0501. Já o México foi o país que a PTF teve o maior desvio-padrão (0,1582) e com maior amplitude, além de que foi o país que teve a maior PTF média, sendo ela de 1,1301. Há indícios que no México a PTF teve grandes oscilações no período analisado. A PTF média dos EUA foi a menor entre os 3 países, de 0,8038 e com amplitude moderada, acreditando que a evolução da PTF nos EUA foi crescente. 
+
+Através do próximo gráfico será possível analisar a variabilidade da  PTF para cada país, ao longo do período analisado. 
+
+```{r }
+
+graf_2 <- ggplot(data= data, aes(y=rtfpna, x= isocode)) + 
+      geom_boxplot(aes(fill = isocode)) + 
+      labs(y='Produtividade Total dos fatores', x= 'Países')+labs(title = "Gráfico 2: Comparação da variabilidade da PTF para os países") +
+      scale_fill_brewer(palette = "Paired")
+
+graf_2
+
+```
+
+
+Nos Gráficos, abaixo, será possível analisar a evolução da PTF em cada país. 
+
+```{r }
+graf_3 <- ggplot(data = eua, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 3: Evolução da PTF para os EUA") +
+      geom_point(colour = "#000000", size = 0.9) +
+      scale_x_continuous(breaks = seq(min(eua$year),max(eua$year), 5)) +
+      scale_y_continuous(breaks = seq(min(eua$rtfpna),max(eua$rtfpna), .05))
+
+graf_3 
+
+```
+
+
+```{r }
+
+graf_4 <- ggplot(data = can, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 4: Evolução da PTF para o Canadá") +
+      geom_point(colour = "#000000", size = 0.9)+
+      scale_x_continuous(breaks = seq(min(can$year),max(can$year), 5)) +
+      scale_y_continuous(breaks = seq(min(can$rtfpna),max(can$rtfpna), .05))
+
+graf_4
+
+```
+
+
+```{r }
+
+graf_5 <- ggplot(data = mex, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 5: Evolução da PTF para o México") +
+      geom_point(colour = "#000000", size = 0.9)+
+      scale_x_continuous(breaks = seq(min(mex$year),max(mex$year), 5)) +
+      scale_y_continuous(breaks = seq(min(mex$rtfpna),max(mex$rtfpna), .05))
+
+graf_5
+
+```
+
+Através do `Gráfico 2` corrobora com o que tinha sido apontado anteriormente, de que a variabilidade da PTF do México foi a maior, e a do Canadá foi a menor. O Canadá foi o único país que apresentou alguns valores "extremos", que distanciaram da sua média. Esses valores extremos podem ser explicados por anos que a PTF caiu de forma abrupta, porém teve uma recuperada nos anos seguintes (choques). 
+
+Os `Gráficos 3 - 5`, evidencia o que foi levantado anteriormente sobre o comportamento da PTF para os 3 países. A PTF para o EUA foi crescente, com pequenas oscilações entre 1950 e 1984. Para o Canadá, a PTF teve oscilações próximas da sua média (0,9929). E o fato da PTF para o México ter a maior amplitude é devido o comportamento da série, depois do pico observado em 1973, observou-se constante queda.  
+
+De uma forma geral, os EUA foi o único país que apresentou um tendência de crescimento durante todo o período analisado. Tanto o México quanto o Canadá tiveram diferentes tendências da PTF em períodos específicos. Concluindo que a PTF nesses dois países, principalmente o México, é suscetível a períodos de crises/recessão. 
+
+## Item 2 - Previsão para a PTF
+Através do modelo ARIMA relizou-se a previsão da PTF para cada país. 
+
+#### 2.1 - Estados Unidos
+
+Prevendo a PTF para os próximos 10 anos nos EUA. 
+
+```{r }
+
+arima_result = auto.arima(data$rtfpna[data$isocode == 'USA'])
+
+```
+
+A especificação sugerida do modelo e principais resultados podem ser encontradas abaixo.
+
+```{r }
+
+summary(arima_result)
+
+
+previsaoARIMA = forecast(arima_result, h = 10)
+
+previsaoARIMA$method
+
+```
+
+A especificação indicada para esse modelo de  previsão foi um ARIMA (0,1,0) com constante. 
+
+Os valores previstos da PTF para os próximos 10 anos nos EUA estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+```{r }
+
+previsao_eua <- as.data.frame(previsaoARIMA)
+
+previsao_eua
+
+```
+
+
+```{r }
+eua1 <- subset(data, isocode == 'USA' & year > 1990)
+
+graf_6 <- ggplot(data = eua1, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 6: Previsão da PTF para os EUA") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao_eua, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao_eua, fill="#1e90ff") +
+      geom_line(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`), data = previsao_eua, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(eua1$year),2030, 2)) +
+      scale_y_continuous(breaks = seq(0, 2, .02))
+
+graf_6
+
+```
+
+#### 2.2 - Canadá
+
+Prevendo a PTF para os próximos 10 anos no Canadá.  
+
+
+```{r }
+
+arima_result = auto.arima(data$rtfpna[data$isocode == 'CAN'])
+
+```
+
+A especificação sugerida do modelo e principais resultados podem ser encontradas abaixo.
+
+```{r}
+
+summary(arima_result)
+
+
+previsaoARIMA = forecast(arima_result, h = 10)
+
+previsaoARIMA$method
+```
+
+A especificação indicada para esse modelo de previsão foi um ARIMA (0,2,3). 
+
+Os valores previstos da PTF para os próximos 10 anos no Canadá estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+
+```{r }
+
+previsao_can <- as.data.frame(previsaoARIMA)
+
+previsao_can
+
+```
+
+
+```{r }
+
+can1 <- subset(data, isocode == 'CAN' & year > 1990)
+
+graf_7 <- ggplot(data = can1, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 7: Previsão da PTF para o Canadá") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao_can, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao_can, fill="#1e90ff") +
+      geom_line(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`), data = previsao_can, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(can1$year),2030, 2)) +
+      scale_y_continuous(breaks = seq(0, 2, .02))
+
+graf_7
+
+```
+
+#### 2.3 - México
+
+Prevendo a PTF para os próximos 10 anos no México.  
+
+```{r }
+
+arima_result = auto.arima(data$rtfpna[data$isocode == 'MEX'])
+
+```
+
+A especificação sugerida do modelo e principais resusltados podem ser encontradas abaixo.
+
+
+```{r }
+
+summary(arima_result)
+
+
+previsaoARIMA = forecast(arima_result, h = 10)
+
+previsaoARIMA$method
+```
+
+A especificação indicada para esse modelo de  previsão foi um ARIMA (0,2,1). 
+
+Os valores previstos da PTF para os próximos 10 anos no México estão listados abaixo, junto com o Intervalo de confiança dessa previsão, com 80% e 95% de confiança. 
+
+```{r }
+
+previsao_mex <- as.data.frame(previsaoARIMA)
+
+previsao_mex
+
+```
+
+
+```{r }
+
+mex1 <- subset(data, isocode == 'MEX' & year > 1990)
+
+graf_8 <- ggplot(data = mex1, aes(x = as.numeric(year), y = as.numeric(rtfpna))) + 
+      geom_line(color = "#1e90ff", size = 1)  + 
+      xlab("Ano") + ylab("PTF") + labs(title = "Gráfico 8: Previsão da PTF para o México") +
+      geom_point(colour = "#000000", size = 0.9) +
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`,
+                    ymax= `Hi 95`, ymin= `Lo 95`),
+                 data=previsao_mex, fill="#add8e6") + 
+      geom_ribbon(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                      y=`Point Forecast`,
+                      ymax= `Hi 80`, ymin= `Lo 80`),
+                  data=previsao_mex, fill="#1e90ff") +
+      geom_line(aes(x=c(2012,2013,2014,2015,2016,2017,2018,2019,2020,2021),
+                    y=`Point Forecast`), data = previsao_mex, color = 'dark blue', size = .8) +
+      scale_x_continuous(breaks = seq(min(mex1$year),2030, 2)) +
+      scale_y_continuous(breaks = seq(0, 2, .05))
+
+graf_8
+
+
+```
+
+
+A previsão da PTF para os EUA foi a única que manteve a tendência de crescimento. Esse resultado foi obtido pois o histórico da PTF dos EUA possui uma tendência positiva entre 1950 a 2011. A previsão da PTF para o Canadá e México apresentou tendência decrescente, porém como a variabilidade da PTF no México foi maior, entre 1950 e 2011, o intervalo de confiança da previsão é maior, quando comparado com o Intervalo de confiança da previsão para o Canadá.
+
+## Item 3 - Informações Adicionais
+
+Segundo Oliveira et al. (2014) a PWT 8.0, é possível analisar a trajetória de variáveis relevantes na avaliação do nível de crescimento e desenvolvimento econômico dos países. Se o objetivo é construir um novo índice que reflita o crescimento da produtividade,poderia utilizar as variáveis: 
+
+- cgdpe: PIB real pela ótica da despesa, em PPP (em milhões de dólares, 2005); 
+
+- cgdpo: PIB pela ótica da produção, em PPP (em milhões de dólares, 2005); 
+
+- rgdpna: PIB real, a preços constantes de 2005 (em milhões de dólares, 2005);
+
+
+Utilizando, também, outras variáveis que refletissem o nível do produto, estoque de capital físico, capital humano, remuneração dos fatores (terra, mão de obra, juros, alguéis, etc.), análises semelhantes a da PTF poderiam ser feitas. 
+
+Nesse caso, poderiam ser utilizadas as variáveis:
+
+- hc : Índice de capital humano por pessoa, baseado em anos de escolaridade (Barro e Lee, 2013) e retornos à educação (Psacharopoulos, 1994);
+
+- avh: Média anual de horas trabalhadas por pessoa;
+
+- ck:  Estoque de capital nas PPPs atuais (em milhões de USD em 2005);
+
+- pl_i: Nível de preços de formação de capital (nível de preços do GDPo dos EUA em 2005 = 1);
+
+- pl_k: Nível de preços do estoque de capital (nível de preços dos EUA em 2005 = 1.
+
+
+
+## Referências
+
+Oliveira,M.F.de; Matni,G.M.; Caetano,S.M. **CRESCIMENTO ECONÔMICO, GAP DO PRODUTO E PRODUTIVIDADE DA ECONOMIA BRASILEIRA NO PÓS-GUERRA**. Disponível em <https://www.bnb.gov.br/documents/160445/226386/ss4_mesa1_artigos2014_crescimento_economico_gap_produto_produtividade.pdf/14f68ffc-e5a6-4373-913a-471b9b6a1346.>. Consultado em 30/11/2020.  
+
